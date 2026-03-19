@@ -24,7 +24,7 @@ jobs:
           # 编译为 arm64 架构
           clang -dynamiclib -isysroot $SDK_PATH \
           -arch arm64 -miphoneos-version-min=12.0 \
-          -framework Foundation -framework UIKit \
+          -framework Foundation \
           bypass.m -o bypass.dylib \
           -I. -O2
           
