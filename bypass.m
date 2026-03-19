@@ -66,26 +66,61 @@
 + (void)load {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        NSLog(@"[EYS-Bypass] 正在启动全局协议引擎...");
+        NSLog(@"[EYS-Bypass] 正在启动全局协议引擎 v2.1...");
+        
+        // 1. 注册协议
         [NSURLProtocol registerClass:[EYSBypassProtocol class]];
-        [self swizzleSessionConfiguration];
+        
+        // 2. 注入所有 Session 配置（关键修复：使用更安全的 Block 挂钩）
+        [self eys_safeSwizzleSessionConfig];
     });
 }
 
-+ (void)swizzleSessionConfiguration {
-    // 强制让所有 NSURLSession 也使用我们的自定义协议
++ (void)eys_safeSwizzleSessionConfig {
     Class cls = [NSURLSessionConfiguration class];
-    Method m1 = class_getClassMethod(cls, @selector(defaultSessionConfiguration));
-    Method m2 = class_getClassMethod([self class], @selector(eys_defaultSessionConfiguration));
-    method_exchangeImplementations(m1, m2);
-}
+    SEL sel = @selector(defaultSessionConfiguration);
+    Method method = class_getClassMethod(cls, sel);
+    
+    if (!method) return;
 
-+ (NSURLSessionConfiguration *)eys_defaultSessionConfiguration {
-    NSURLSessionConfiguration *config = [self eys_defaultSessionConfiguration];
-    NSMutableArray *protocols = [NSMutableArray arrayWithArray:config.protocolClasses];
-    [protocols insertObject:[EYSBypassProtocol class] atIndex:0];
-    config.protocolClasses = protocols;
-    return config;
+    // 保存原始实现
+    __block IMP (*originalImp)(id, SEL) = (IMP (*)(id, SEL))method_getImplementation(method);
+
+    // 创建新实现
+    IMP newImp = imp_implementationWithBlock(^NSURLSessionConfiguration *(id _self) {
+        // 调用原函数
+        NSURLSessionConfiguration *config = originalImp(_self, sel);
+        
+        // 注入我们的拦截协议
+        if (config) {
+            NSMutableArray *protocols = [NSMutableArray arrayWithArray:config.protocolClasses];
+            if (![protocols containsObject:[EYSBypassProtocol class]]) {
+                [protocols insertObject:[EYSBypassProtocol class] atIndex:0];
+                config.protocolClasses = protocols;
+            }
+        }
+        return config;
+    });
+
+    // 替换
+    method_setImplementation(method, newImp);
+    
+    // 同样挂钩 ephemeralSessionConfiguration
+    SEL sel2 = @selector(ephemeralSessionConfiguration);
+    Method method2 = class_getClassMethod(cls, sel2);
+    if (method2) {
+        __block IMP (*originalImp2)(id, SEL) = (IMP (*)(id, SEL))method_getImplementation(method2);
+        IMP newImp2 = imp_implementationWithBlock(^NSURLSessionConfiguration *(id _self) {
+            NSURLSessionConfiguration *config = originalImp2(_self, sel2);
+            if (config) {
+                NSMutableArray *protocols = [NSMutableArray arrayWithArray:config.protocolClasses];
+                [protocols insertObject:[EYSBypassProtocol class] atIndex:0];
+                config.protocolClasses = protocols;
+            }
+            return config;
+        });
+        method_setImplementation(method2, newImp2);
+    }
 }
 
 @end
