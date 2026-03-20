@@ -31,25 +31,37 @@
 
 - (void)startLoading {
     NSString *url = self.request.URL.absoluteString;
+    NSLog(@"[EYS-Bypass] 拦截请求: %@ (方法: %@)", url, self.request.HTTPMethod);
     
     // 构建验证通过的 JSON (晚风电竞品牌)
     NSString *jsonStr = @"{\"code\":1,\"data\":{\"alert\":\"\\u665a\\u98ce\\u7535\\u7ade\\u5168\\u80fd\\u7248IOS\",\"endtip\":0,\"hint\":\"QQ\\u4ea4\\u6d41\\u7fa41079837419 \\uff08\\u95f2\\u9c7c\\u665a\\u98ce\\u7535\\u7ade)\",\"verify\":1,\"jump\":0},\"message\":\"success\"}";
     
     NSData *responseData;
     
-    // 关键区分：
-    // - verifyAuthCode 端点: JS 使用 JSON.parse(decodeBase64(responseText)) → 需要 Base64
-    // - verifyNotice 端点:   JS 使用 JSON.parse(responseText) → 需要原始 JSON
-    if ([url containsString:@"notice"]) {
-        // notice 端点直接返回原始 JSON
-        responseData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
-        NSLog(@"[EYS-Bypass] notice 端点 → 返回原始 JSON: %@", url);
-    } else {
-        // verify/auth 等端点返回 Base64 编码的 JSON
+    // 判断请求类型：
+    // - verifyAuthCode: POST body 包含 "authcode" → JS 用 JSON.parse(decodeBase64(resp)) → 返回 Base64
+    // - verifyNotice:   POST body 包含 "appid" → JS 用 JSON.parse(resp) → 返回原始 JSON
+    // 注意：URL 路径是混淆的，不能用 URL 字符串来区分！
+    BOOL isAuthVerify = NO;
+    NSData *bodyData = self.request.HTTPBody;
+    if (bodyData) {
+        NSString *bodyStr = [[NSString alloc] initWithData:bodyData encoding:NSUTF8StringEncoding];
+        NSLog(@"[EYS-Bypass] 请求 body: %@", bodyStr);
+        if ([bodyStr containsString:@"authcode"]) {
+            isAuthVerify = YES;
+        }
+    }
+    
+    if (isAuthVerify) {
+        // auth 验证端点 → 返回 Base64(JSON)
         NSData *jsonData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
         NSString *base64Str = [jsonData base64EncodedStringWithOptions:0];
         responseData = [base64Str dataUsingEncoding:NSUTF8StringEncoding];
-        NSLog(@"[EYS-Bypass] verify 端点 → 返回 Base64 JSON: %@", url);
+        NSLog(@"[EYS-Bypass] ✅ authcode 端点 → Base64 编码响应");
+    } else {
+        // notice 或其他端点 → 返回原始 JSON
+        responseData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
+        NSLog(@"[EYS-Bypass] ✅ 非 authcode 端点 → 原始 JSON 响应");
     }
 
     NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL
