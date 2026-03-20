@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <objc/message.h>
 
 /**
  * 鹅鸭杀 验证绕过 + 品牌修改插件 v3.0
@@ -193,7 +194,8 @@ static NSString *kBrandingReplaceJS = @"\
     Method method = class_getClassMethod(cls, sel);
     if (!method) return;
 
-    __block IMP (*originalImp)(id, SEL) = (IMP (*)(id, SEL))method_getImplementation(method);
+    typedef NSURLSessionConfiguration* (*SessionConfigIMP)(id, SEL);
+    __block SessionConfigIMP originalImp = (SessionConfigIMP)method_getImplementation(method);
     IMP newImp = imp_implementationWithBlock(^NSURLSessionConfiguration *(id _self) {
         NSURLSessionConfiguration *config = originalImp(_self, sel);
         if (config) {
@@ -210,7 +212,8 @@ static NSString *kBrandingReplaceJS = @"\
     SEL sel2 = @selector(ephemeralSessionConfiguration);
     Method method2 = class_getClassMethod(cls, sel2);
     if (method2) {
-        __block IMP (*originalImp2)(id, SEL) = (IMP (*)(id, SEL))method_getImplementation(method2);
+        typedef NSURLSessionConfiguration* (*SessionConfigIMP2)(id, SEL);
+        __block SessionConfigIMP2 originalImp2 = (SessionConfigIMP2)method_getImplementation(method2);
         IMP newImp2 = imp_implementationWithBlock(^NSURLSessionConfiguration *(id _self) {
             NSURLSessionConfiguration *config = originalImp2(_self, sel2);
             if (config) {
