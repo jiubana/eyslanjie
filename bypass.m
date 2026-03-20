@@ -37,17 +37,19 @@
     
     NSData *responseData;
     
-    // 关键：verifyAuthCode 端点的客户端 JS 使用 decodeBase64(atob) 解码
-    // 所以必须返回 Base64 编码的 JSON，否则 atob 会抛出 InvalidCharacterError
-    if ([url containsString:@"verify"] || [url containsString:@"auth"]) {
+    // 关键区分：
+    // - verifyAuthCode 端点: JS 使用 JSON.parse(decodeBase64(responseText)) → 需要 Base64
+    // - verifyNotice 端点:   JS 使用 JSON.parse(responseText) → 需要原始 JSON
+    if ([url containsString:@"notice"]) {
+        // notice 端点直接返回原始 JSON
+        responseData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
+        NSLog(@"[EYS-Bypass] notice 端点 → 返回原始 JSON: %@", url);
+    } else {
+        // verify/auth 等端点返回 Base64 编码的 JSON
         NSData *jsonData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
         NSString *base64Str = [jsonData base64EncodedStringWithOptions:0];
         responseData = [base64Str dataUsingEncoding:NSUTF8StringEncoding];
-        NSLog(@"[EYS-Bypass] 返回 Base64 编码的验证数据: %@", url);
-    } else {
-        // notice 等其他端点直接返回 JSON
-        responseData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
-        NSLog(@"[EYS-Bypass] 返回原始 JSON 数据: %@", url);
+        NSLog(@"[EYS-Bypass] verify 端点 → 返回 Base64 JSON: %@", url);
     }
 
     NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL
