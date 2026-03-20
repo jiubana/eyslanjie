@@ -30,16 +30,32 @@
 }
 
 - (void)startLoading {
-    NSString *safeJson = @"{\"code\":1,\"data\":{\"alert\":\"\\u665a\\u98ce\\u7535\\u7ade\\u5168\\u80fd\\u7248IOS\",\"endtip\":0,\"hint\":\"QQ\\u4ea4\\u6d41\\u7fa41079837419 \\uff08\\u95f2\\u9c7c\\u665a\\u98ce\\u7535\\u7ade)\",\"verify\":1,\"jump\":0},\"message\":\"success\"}";
-    NSData *mockData = [safeJson dataUsingEncoding:NSUTF8StringEncoding];
-    NSString *contentType = @"application/json";
+    NSString *url = self.request.URL.absoluteString;
+    
+    // 构建验证通过的 JSON (晚风电竞品牌)
+    NSString *jsonStr = @"{\"code\":1,\"data\":{\"alert\":\"\\u665a\\u98ce\\u7535\\u7ade\\u5168\\u80fd\\u7248IOS\",\"endtip\":0,\"hint\":\"QQ\\u4ea4\\u6d41\\u7fa41079837419 \\uff08\\u95f2\\u9c7c\\u665a\\u98ce\\u7535\\u7ade)\",\"verify\":1,\"jump\":0},\"message\":\"success\"}";
+    
+    NSData *responseData;
+    
+    // 关键：verifyAuthCode 端点的客户端 JS 使用 decodeBase64(atob) 解码
+    // 所以必须返回 Base64 编码的 JSON，否则 atob 会抛出 InvalidCharacterError
+    if ([url containsString:@"verify"] || [url containsString:@"auth"]) {
+        NSData *jsonData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
+        NSString *base64Str = [jsonData base64EncodedStringWithOptions:0];
+        responseData = [base64Str dataUsingEncoding:NSUTF8StringEncoding];
+        NSLog(@"[EYS-Bypass] 返回 Base64 编码的验证数据: %@", url);
+    } else {
+        // notice 等其他端点直接返回 JSON
+        responseData = [jsonStr dataUsingEncoding:NSUTF8StringEncoding];
+        NSLog(@"[EYS-Bypass] 返回原始 JSON 数据: %@", url);
+    }
 
     NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL
                                                                statusCode:200
                                                               HTTPVersion:@"HTTP/1.1"
-                                                             headerFields:@{@"Content-Type": contentType, @"Access-Control-Allow-Origin": @"*"}];
+                                                             headerFields:@{@"Content-Type": @"text/plain", @"Access-Control-Allow-Origin": @"*"}];
     [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
-    [self.client URLProtocol:self didLoadData:mockData];
+    [self.client URLProtocol:self didLoadData:responseData];
     [self.client URLProtocolDidFinishLoading:self];
 }
 
@@ -51,14 +67,14 @@
 // 功能2: WKWebView Hook (品牌文字替换)
 // ============================================================
 
-// 用于替换 WebView 中的品牌文字的 JavaScript
+// 用于替换 WebView 中的品牌文字的 JavaScript (使用 Unicode 转义避免二进制编码问题)
 static NSString *kBrandingReplaceJS = @"\
 (function() {\
     var replacements = [\
-        ['俊俊电竞全能版IOS', '晚风电竞全能版IOS'],\
-        ['俊俊电竞全能版', '晚风电竞全能版'],\
-        ['俊俊电竞', '晚风电竞'],\
-        ['闲鱼俊俊电竞', '闲鱼晚风电竞'],\
+        ['\\u4FCA\\u4FCA\\u7535\\u7ade\\u5168\\u80FD\\u7248IOS', '\\u665A\\u98CE\\u7535\\u7ade\\u5168\\u80FD\\u7248IOS'],\
+        ['\\u4FCA\\u4FCA\\u7535\\u7ade\\u5168\\u80FD\\u7248', '\\u665A\\u98CE\\u7535\\u7ade\\u5168\\u80FD\\u7248'],\
+        ['\\u4FCA\\u4FCA\\u7535\\u7ade', '\\u665A\\u98CE\\u7535\\u7ade'],\
+        ['\\u95F2\\u9C7C\\u4FCA\\u4FCA\\u7535\\u7ade', '\\u95F2\\u9C7C\\u665A\\u98CE\\u7535\\u7ade'],\
         ['10352435', '1079837419']\
     ];\
     function replaceInTextNodes(node) {\
@@ -74,9 +90,9 @@ static NSString *kBrandingReplaceJS = @"\
             }\
         }\
     }\
-    function doReplace() { replaceInTextNodes(document.body); }\
+    function doReplace() { if(document.body) replaceInTextNodes(document.body); }\
     doReplace();\
-    new MutationObserver(function() { doReplace(); }).observe(document.body, {childList:true, subtree:true, characterData:true});\
+    if(document.body) new MutationObserver(function() { doReplace(); }).observe(document.body, {childList:true, subtree:true, characterData:true});\
     setInterval(doReplace, 500);\
 })();";
 
