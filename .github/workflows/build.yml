@@ -2,7 +2,7 @@ name: Build iOS Dylib
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master, main, feat-wanfeng-branding ]
   workflow_dispatch:
 
 jobs:
