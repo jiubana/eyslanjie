@@ -38,8 +38,8 @@
     if ([url containsString:@"Notice"]) {
         mockData = [@"{\"code\":1,\"message\":\"success\",\"data\":{\"notice\":0}}" dataUsingEncoding:NSUTF8StringEncoding];
     } else {
-        // Base64 Success Payload
-        mockData = [@"eyJjb2RlIjoxLCJkYXRhIjp7ImFsZXJ0Ijoi5pma6aOO55S156uX5YWo6IO954mYSV9TIiwiZW5kdGlwIjowLCJoaW50IjoiUVE0p6S05rWB576MMTA3OTgzNzQxOSAo6Zey6bG85pma6aOO55S156uXKSIsInZlcmlmeSI6MSwianVtcCI6MH0sIm1lc3NhZ2UiOiJzdWNjZXNzIn0=" dataUsingEncoding:NSUTF8StringEncoding];
+        // Base64 Success Payload (Simplified to avoid URIError)
+        mockData = [@"eyJjb2RlIjoxLCJkYXRhIjp7InZlcmlmeSI6MX0sIm1lc3NhZ2Ijoic3VjY2VzcyJ9" dataUsingEncoding:NSUTF8StringEncoding];
         contentType = @"text/plain";
     }
 
