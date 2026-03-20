@@ -20,7 +20,7 @@
 + (BOOL)canInitWithRequest:(NSURLRequest *)request {
     NSString *url = request.URL.absoluteString;
     // 只拦截验证服务器相关的请求
-    if ([url containsString:@"qunhongtech.com/auth/"]) {
+    if ([url containsString:@"qunhongtech.com"]) {
         return YES;
     }
     return NO;
@@ -35,18 +35,16 @@
     NSData *mockData = nil;
     NSString *contentType = @"application/json";
 
-    if ([url containsString:@"Notice"]) {
-        mockData = [@"{\"code\":1,\"message\":\"success\",\"data\":{\"notice\":0}}" dataUsingEncoding:NSUTF8StringEncoding];
-    } else {
-        // Base64 Success Payload (Simplified to avoid URIError)
-        mockData = [@"eyJjb2RlIjoxLCJkYXRhIjp7InZlcmlmeSI6MX0sIm1lc3NhZ2Ijoic3VjY2VzcyJ9" dataUsingEncoding:NSUTF8StringEncoding];
-        contentType = @"text/plain";
-    }
+    // 使用转义的 Unicode 字符串，避免 JS 的 URIError
+    // {"code":1,"data":{"alert":"\u665a\u98ce\u7535\u竞\u5168\u80fd\u7248IOS","endtip":0,"hint":"QQ交流群1079837419 （闲鱼晚风电竞)","verify":1,"jump":0},"message":"success"}
+    NSString *safeJson = @"{\"code\":1,\"data\":{\"alert\":\"\\u665a\\u98ce\\u7535\\u7ade\\u5168\\u80fd\\u7248IOS\",\"endtip\":0,\"hint\":\"QQ\\u4ea4\\u6d41\\u7fa41079837419 \\uff08\\u95f2\\u9c7c\\u665a\\u98ce\\u7535\\u7ade)\",\"verify\":1,\"jump\":0},\"message\":\"success\"}";
+    
+    mockData = [safeJson dataUsingEncoding:NSUTF8StringEncoding];
 
     NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL
-                                                              statusCode:200
-                                                             HTTPVersion:@"HTTP/1.1"
-                                                            headerFields:@{@"Content-Type": contentType, @"Access-Control-Allow-Origin": @"*"}];
+                                                               statusCode:200
+                                                              HTTPVersion:@"HTTP/1.1"
+                                                             headerFields:@{@"Content-Type": contentType, @"Access-Control-Allow-Origin": @"*"}];
 
     [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
     [self.client URLProtocol:self didLoadData:mockData];
